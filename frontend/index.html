@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Scanner</title>
+    <link rel="stylesheet" href="/frontend/style.css">
+</head>
+<body>
+    <h1>Receipt Scanner</h1>
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload Receipt</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <input type="file" id="file-input" name="file" accept="image/*">
+                <button type="submit">Upload</button>
+            </form>
+        </div>
+        <div class="receipts-section">
+            <h2>Uploaded Receipts</h2>
+            <div id="receipts-gallery"></div>
+            <button id="export-button">Export to Excel</button>
+        </div>
+    </div>
+    <script src="/frontend/script.js"></script>
+</body>
+</html>
