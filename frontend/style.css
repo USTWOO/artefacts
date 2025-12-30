@@ -11,19 +11,20 @@ h1, h2 {
 
 .container {
     display: flex;
+    flex-direction: column; /* Stack sections vertically by default */
     gap: 20px;
-    flex-wrap: wrap;
 }
 
-.upload-section, .receipts-section {
+.upload-section, .edit-section, .receipts-section {
     background-color: #fff;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    flex: 1 1 400px; /* Flex-grow, flex-shrink, flex-basis */
+    width: 100%;
+    box-sizing: border-box;
 }
 
-#upload-form {
+#upload-form, #edit-form {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -48,10 +49,25 @@ button:hover {
     background-color: #0056b3;
 }
 
+#camera-view {
+    margin-top: 15px;
+}
+
+#camera-stream {
+    width: 100%;
+    border-radius: 4px;
+}
+
+.camera-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
 #receipts-gallery {
     margin-top: 20px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: 1fr; /* Single column for mobile */
     gap: 10px;
 }
 
@@ -61,17 +77,33 @@ button:hover {
     border-radius: 4px;
 }
 
-/* Responsive layout for mobile devices */
-@media (max-width: 768px) {
+.hidden {
+    display: none;
+}
+
+#edit-form input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Responsive layout for larger screens */
+@media (min-width: 768px) {
     .container {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-start;
     }
 
-    .upload-section, .receipts-section {
-        width: 100%;
+    .upload-section, .edit-section {
+        flex: 1 1 45%; /* Allow two sections side-by-side */
+    }
+
+    .receipts-section {
+        flex: 1 1 100%; /* Full width for the gallery */
     }
 
     #receipts-gallery {
-        grid-template-columns: 1fr; /* Single column on small screens */
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     }
 }
