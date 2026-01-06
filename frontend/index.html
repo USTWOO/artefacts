@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Scanner</title>
+    <link rel="stylesheet" href="/frontend/style.css">
+</head>
+<body>
+    <h1>Receipt Scanner</h1>
+    <div class="container">
+        <div class="upload-section">
+            <h2>1. Add Receipt Image</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <input type="file" id="file-input" name="file" accept="image/*">
+                <button type="button" id="scan-camera-button">Scan with Camera</button>
+                <button type="submit">Process Receipt</button>
+            </form>
+
+            <div id="camera-view" class="hidden">
+                <video id="camera-stream" autoplay></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+                <div class="camera-controls">
+                    <button type="button" id="capture-button">Capture</button>
+                    <button type="button" id="cancel-camera-button">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-section" class="edit-section hidden">
+            <h2>2. Verify and Edit Data</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-receipt-id" name="id">
+                <label for="edit-vendor">Vendor:</label>
+                <input type="text" id="edit-vendor" name="vendor" required>
+
+                <label for="edit-date">Date:</label>
+                <input type="date" id="edit-date" name="date" required>
+
+                <label for="edit-amount">Amount:</label>
+                <input type="number" step="0.01" id="edit-amount" name="amount" required>
+
+                <label for="edit-vat">VAT:</label>
+                <input type="number" step="0.01" id="edit-vat" name="vat">
+
+                <label for="edit-total">Total:</label>
+                <input type="number" step="0.01" id="edit-total" name="total_amount" required>
+
+                <button type="submit">Save Receipt</button>
+            </form>
+        </div>
+
+        <div class="receipts-section">
+            <h2>Uploaded Receipts</h2>
+            <div id="receipts-gallery"></div>
+            <button id="export-button">Export to Excel</button>
+        </div>
+    </div>
+    <script src="/frontend/script.js"></script>
+</body>
+</html>
