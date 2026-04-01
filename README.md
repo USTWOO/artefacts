@@ -56,6 +56,35 @@ python -m spacy download en_core_web_sm
 3. **Access on Mobile**:
    Navigate to `http://<your-ip-address>:3000` in your phone's browser. You can then use the "Add to Home Screen" feature to install it as a PWA.
 
+## Running Locally on a Mobile Device (Android/Termux)
+
+To run the *complete* app (backend + frontend) entirely on your Android phone without a PC:
+
+1. **Install Termux**: Download and install the [Termux](https://termux.dev/) app.
+2. **Setup the Environment**:
+   Open Termux and run:
+   ```bash
+   pkg update && pkg upgrade
+   pkg install python tesseract libjpeg-turbo libpng opencv
+   ```
+3. **Clone and Install**:
+   ```bash
+   # Clone your project or copy files to the phone
+   pip install -r backend/requirements.txt
+   python -m spacy download en_core_web_sm
+   ```
+4. **Run the Backend**:
+   ```bash
+   uvicorn backend.main:app --host 127.0.0.1 --port 8000 &
+   ```
+5. **Run the Frontend**:
+   ```bash
+   cd frontend
+   python3 -m http.server 3000
+   ```
+6. **Open in Browser**:
+   Navigate to `http://localhost:3000` in Chrome on your phone. You can then "Install" it to your home screen.
+
 ## Architecture
 
 - **Frontend**: Vanilla HTML/CSS/JS with a focus on responsive, mobile-first design.
