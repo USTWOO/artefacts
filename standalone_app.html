@@ -41,7 +41,18 @@
         .stat-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.9rem; }
 
         #export-btn { width: 100%; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; margin-top: 10px; }
-        #img-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; display: none; }
+        #img-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; display: none; cursor: zoom-in; }
+
+        /* Modal for Full Image */
+        #img-modal { display: none; position: fixed; z-index: 2000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
+        #img-modal img { max-width: 95%; max-height: 95%; object-fit: contain; }
+        #close-modal { position: absolute; top: 20px; right: 20px; color: white; font-size: 30px; cursor: pointer; border: 2px solid white; border-radius: 50%; width: 40px; height: 40px; text-align: center; line-height: 35px; }
+
+        .voice-group { display: flex; align-items: center; gap: 5px; }
+        .voice-btn { background: #eee; border: 1px solid #ccc; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+        .voice-btn.active { background: #ff3b30; color: white; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -63,18 +74,30 @@
                 <div id="processing">🤖 AI is reading your receipt...</div>
 
                 <div id="edit-form" style="display:none">
-                    <img id="img-preview" src="">
-                    <div class="form-group"><label>Company:</label><input type="text" id="vendor"></div>
-                    <div class="form-group"><label>Date:</label><input type="text" id="date"></div>
-                    <div class="form-group"><label>Subtotal:</label><input type="number" step="0.01" id="subtotal"></div>
-                    <div class="form-group"><label>VAT:</label><input type="number" step="0.01" id="vat"></div>
-                    <div class="form-group"><label>Total:</label><input type="number" step="0.01" id="total"></div>
+                    <img id="img-preview" src="" onclick="enlargeImage(this.src)">
+                    <div class="form-group"><label>Company:</label>
+                        <div class="voice-group"><input type="text" id="vendor"><button class="voice-btn" onclick="startVoice('vendor', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Date:</label>
+                        <div class="voice-group"><input type="text" id="date"><button class="voice-btn" onclick="startVoice('date', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Subtotal:</label>
+                        <div class="voice-group"><input type="number" step="0.01" id="subtotal"><button class="voice-btn" onclick="startVoice('subtotal', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>VAT:</label>
+                        <div class="voice-group"><input type="number" step="0.01" id="vat"><button class="voice-btn" onclick="startVoice('vat', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Total:</label>
+                        <div class="voice-group"><input type="number" step="0.01" id="total"><button class="voice-btn" onclick="startVoice('total', this)">🎙️</button></div>
+                    </div>
                     <div class="form-group"><label>Category:</label>
+                        <div class="voice-group">
                         <select id="category">
                             <option>Food</option><option>Travel</option><option>Fuel</option>
                             <option>Entertainment</option><option>Supplies</option><option>Utilities</option>
                             <option>Miscellaneous</option>
                         </select>
+                        <button class="voice-btn" onclick="startVoice('category', this)">🎙️</button></div>
                     </div>
                     <div class="btns">
                         <button id="save-btn" onclick="saveReceipt()">Save</button>
@@ -103,6 +126,13 @@
         </main>
     </div>
 
+    <div id="img-modal">
+        <span id="close-modal" onclick="document.getElementById('img-modal').style.display='none'">&times;</span>
+        <img id="modal-img" src="">
+    </div>
+
+    <canvas id="proc-canvas" style="display:none"></canvas>
+
     <script>
         let db;
         let currentImage = null;
@@ -128,19 +158,26 @@
             const file = input.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = e => {
-                currentImage = e.target.result;
-                document.getElementById('img-preview').src = currentImage;
-                document.getElementById('img-preview').style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-
             document.getElementById('processing').style.display = 'block';
             document.getElementById('capture-btn').style.display = 'none';
 
+            // Preprocess image for better OCR
+            const img = await createImageBitmap(file);
+            const canvas = document.getElementById('proc-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            // Grayscale and High Contrast
+            ctx.filter = 'grayscale(1) contrast(200%) brightness(120%)';
+            ctx.drawImage(img, 0, 0);
+
+            currentImage = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('img-preview').src = currentImage;
+            document.getElementById('img-preview').style.display = 'block';
+
             try {
-                const { data: { text } } = await Tesseract.recognize(file, 'eng');
+                const { data: { text } } = await Tesseract.recognize(currentImage, 'eng');
                 const extracted = extractOCR(text);
 
                 document.getElementById('vendor').value = extracted.vendor;
@@ -158,12 +195,49 @@
         }
 
         function extractOCR(text) {
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            // Clean text - common OCR mistakes
+            const clean = text.replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5');
+            const lines = clean.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+
             const vendor = lines[0] || "Unknown";
-            const dateMatch = text.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
-            const amountMatch = text.match(/(\d+\.\d{2})/g);
-            const total = amountMatch ? Math.max(...amountMatch.map(Number)) : 0;
+            const dateMatch = clean.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+            const amountMatch = clean.match(/(\d+[\.\,]\d{2})/g);
+
+            let total = 0;
+            if (amountMatch) {
+                const nums = amountMatch.map(a => parseFloat(a.replace(',', '.')));
+                total = Math.max(...nums);
+            }
+
             return { vendor, date: dateMatch ? dateMatch[0] : new Date().toLocaleDateString(), total };
+        }
+
+        function enlargeImage(src) {
+            document.getElementById('modal-img').src = src;
+            document.getElementById('img-modal').style.display = 'flex';
+        }
+
+        function startVoice(fieldId, btn) {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            btn.classList.add('active');
+
+            recognition.onresult = e => {
+                const val = e.results[0][0].transcript;
+                const input = document.getElementById(fieldId);
+                if (input.type === 'number') {
+                    // Try to extract numbers from speech
+                    const numMatch = val.match(/[\d\.]+/);
+                    if (numMatch) input.value = numMatch[0];
+                } else {
+                    input.value = val;
+                }
+                btn.classList.remove('active');
+            };
+
+            recognition.onerror = () => btn.classList.remove('active');
+            recognition.onend = () => btn.classList.remove('active');
+            recognition.start();
         }
 
         function saveReceipt() {
@@ -208,7 +282,7 @@
                     const div = document.createElement('div');
                     div.className = "receipt-card";
                     div.innerHTML = `
-                        <img src="${r.image || ''}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px;">
+                        <img src="${r.image || ''}" onclick="enlargeImage(this.src)" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in;">
                         <div class="receipt-info">
                             <span class="receipt-vendor">${r.vendor}</span>
                             <span class="receipt-meta">${r.date} • ${r.category}</span>
