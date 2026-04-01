@@ -29,14 +29,14 @@ def extract_info(text):
     if doc:
         for ent in doc.ents:
             if ent.label_ == "ORG":
-                data["vendor"] = ent.text
+                data["vendor"] = ent.text.strip()
                 break
 
     # Fallback: often the first line is the vendor
     if data["vendor"] == "Unknown":
-        lines = [l.strip() for l in text.split('\n') if l.strip()]
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
         if lines:
-            data["vendor"] = lines[0]
+            data["vendor"] = lines[0].strip().replace('\n', '').replace('\r', '')
 
     # --- Date Extraction ---
     # Simple regex for DD/MM/YYYY or MM/DD/YYYY or YYYY-MM-DD
@@ -73,8 +73,10 @@ def extract_info(text):
     categories = {
         "Food": ["restaurant", "cafe", "food", "burger", "coffee", "lunch", "dinner", "pizza", "starbucks"],
         "Travel": ["uber", "taxi", "train", "flight", "hotel", "airline", "bus"],
+        "Fuel": ["shell", "bp", "exxon", "fuel", "gas station", "petrol"],
+        "Entertainment": ["amc", "theatre", "movie", "concert", "stadium", "netflix", "spotify"],
         "Supplies": ["stationery", "paper", "pen", "office", "staples", "amazon"],
-        "Utilities": ["electric", "water", "internet", "phone", "gas"],
+        "Utilities": ["electric", "water", "internet", "phone"],
     }
 
     text_lower = text.lower()

@@ -12,11 +12,39 @@ body {
     max-width: 600px;
     padding: 20px;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
-h1, h2 {
+header h1 {
     text-align: center;
     color: #333;
+    margin: 10px 0;
+}
+
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #555;
+}
+
+.tab-btn.active {
+    background: #007aff;
+    color: white;
 }
 
 #scan-section {
@@ -116,6 +144,7 @@ h1, h2 {
     border-radius: 5px;
     font-size: 1rem;
     cursor: pointer;
+    margin-top: 20px;
 }
 
 #processing-msg {
@@ -123,4 +152,65 @@ h1, h2 {
     font-style: italic;
     color: #007aff;
     margin-bottom: 20px;
+}
+
+footer {
+    margin-top: auto;
+    padding: 20px 0;
+}
+
+#pc-sync-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: #eee;
+    color: #999;
+    border: 1px dashed #ccc;
+    border-radius: 5px;
+}
+
+.stats-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.stats-card h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f9f9f9;
+}
+
+.mobile-only-overlay {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .mobile-only-overlay {
+        display: flex;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.5rem;
+        color: #333;
+        text-align: center;
+    }
+}
+
+#scanned-image-preview img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    margin-bottom: 15px;
 }
