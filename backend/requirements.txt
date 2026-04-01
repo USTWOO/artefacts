@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pytesseract
+opencv-python-headless
+spacy
+pandas
+openpyxl
+python-multipart
+aiofiles
+pytest
+httpx
