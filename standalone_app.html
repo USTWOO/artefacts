@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Standalone Receipt Scanner</title>
+    <title>Advanced Receipt Scanner</title>
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -23,7 +23,13 @@
 
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        .voice-group { display: flex; align-items: center; gap: 5px; }
+        .form-group input, .form-group select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        .voice-btn { background: #eee; border: 1px solid #ccc; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+        .voice-btn.active { background: #ff3b30; color: white; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
         .btns { display: flex; gap: 10px; margin-top: 15px; }
         .btns button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
         #save-btn { background: #28a745; color: white; }
@@ -47,12 +53,6 @@
         #img-modal { display: none; position: fixed; z-index: 2000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
         #img-modal img { max-width: 95%; max-height: 95%; object-fit: contain; }
         #close-modal { position: absolute; top: 20px; right: 20px; color: white; font-size: 30px; cursor: pointer; border: 2px solid white; border-radius: 50%; width: 40px; height: 40px; text-align: center; line-height: 35px; }
-
-        .voice-group { display: flex; align-items: center; gap: 5px; }
-        .voice-btn { background: #eee; border: 1px solid #ccc; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
-        .voice-btn.active { background: #ff3b30; color: white; animation: pulse 1s infinite; }
-
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -92,12 +92,13 @@
                     </div>
                     <div class="form-group"><label>Category:</label>
                         <div class="voice-group">
-                        <select id="category">
-                            <option>Food</option><option>Travel</option><option>Fuel</option>
-                            <option>Entertainment</option><option>Supplies</option><option>Utilities</option>
-                            <option>Miscellaneous</option>
-                        </select>
-                        <button class="voice-btn" onclick="startVoice('category', this)">🎙️</button></div>
+                            <select id="category">
+                                <option>Food</option><option>Travel</option><option>Fuel</option>
+                                <option>Entertainment</option><option>Supplies</option><option>Utilities</option>
+                                <option>Miscellaneous</option>
+                            </select>
+                            <button class="voice-btn" onclick="startVoice('category', this)">🎙️</button>
+                        </div>
                     </div>
                     <div class="btns">
                         <button id="save-btn" onclick="saveReceipt()">Save</button>
@@ -158,33 +159,44 @@
             const file = input.files[0];
             if (!file) return;
 
-            document.getElementById('processing').style.display = 'block';
+            const procMsg = document.getElementById('processing');
+            procMsg.innerText = "🤖 AI is reading your receipt...";
+            procMsg.style.display = 'block';
             document.getElementById('capture-btn').style.display = 'none';
 
-            // Preprocess image for better OCR
+            // 1. Preprocess Image for better OCR
             const img = await createImageBitmap(file);
             const canvas = document.getElementById('proc-canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
 
-            // Grayscale and High Contrast
-            ctx.filter = 'grayscale(1) contrast(200%) brightness(120%)';
-            ctx.drawImage(img, 0, 0);
+            const scale = Math.min(2.0, 2500 / Math.max(img.width, img.height));
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
 
-            currentImage = canvas.toDataURL('image/jpeg', 0.8);
+            ctx.filter = 'grayscale(1) contrast(300%) brightness(120%)';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            currentImage = canvas.toDataURL('image/jpeg', 0.9);
             document.getElementById('img-preview').src = currentImage;
             document.getElementById('img-preview').style.display = 'block';
 
             try {
-                const { data: { text } } = await Tesseract.recognize(currentImage, 'eng');
+                // 2. Perform OCR with progress
+                const worker = await Tesseract.createWorker();
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+
+                const { data: { text } } = await worker.recognize(currentImage);
+                await worker.terminate();
+
+                // 3. Extract Data with Advanced Logic
                 const extracted = extractOCR(text);
 
                 document.getElementById('vendor').value = extracted.vendor;
                 document.getElementById('date').value = extracted.date;
                 document.getElementById('total').value = extracted.total;
-                document.getElementById('vat').value = (extracted.total * 0.15).toFixed(2); // heuristic
-                document.getElementById('subtotal').value = (extracted.total - document.getElementById('vat').value).toFixed(2);
+                document.getElementById('vat').value = extracted.vat;
+                document.getElementById('subtotal').value = extracted.subtotal;
 
                 document.getElementById('processing').style.display = 'none';
                 document.getElementById('edit-form').style.display = 'block';
@@ -195,21 +207,74 @@
         }
 
         function extractOCR(text) {
-            // Clean text - common OCR mistakes
-            const clean = text.replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5');
-            const lines = clean.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+            // Clean common OCR character confusion
+            const cleanText = text.replace(/[OQ]/g, '0').replace(/[ILl|]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-            const vendor = lines[0] || "Unknown";
-            const dateMatch = clean.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
-            const amountMatch = clean.match(/(\d+[\.\,]\d{2})/g);
+            let data = { vendor: "Unknown", date: new Date().toLocaleDateString(), total: 0, vat: 0, subtotal: 0 };
 
-            let total = 0;
-            if (amountMatch) {
-                const nums = amountMatch.map(a => parseFloat(a.replace(',', '.')));
-                total = Math.max(...nums);
+            // --- 1. Vendor Detection (Looking for branding usually at the top) ---
+            const noise = ["TAX INVOICE", "RECEIPT", "INVOICE", "WELCOME", "CUSTOMER COPY", "ORDER", "CASH", "SALE", "TERMINAL"];
+            for (let i = 0; i < Math.min(lines.length, 6); i++) {
+                const upperLine = lines[i].toUpperCase();
+                if (lines[i].length > 3 && !noise.some(n => upperLine.includes(n)) && !/\d{2,}/.test(lines[i])) {
+                    data.vendor = lines[i];
+                    break;
+                }
             }
 
-            return { vendor, date: dateMatch ? dateMatch[0] : new Date().toLocaleDateString(), total };
+            // --- 2. Date Detection (Multiple formats) ---
+            const datePatterns = [
+                /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/,
+                /\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/,
+                /\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}/i,
+                /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}/i
+            ];
+            for (let p of datePatterns) {
+                let m = text.match(p);
+                if (m) { data.date = m[0]; break; }
+            }
+
+            // --- 3. Amount Detection (Total, VAT, Subtotal) ---
+            const amountRegex = /(\d+[\.,]\d{2})/;
+            const allAmounts = text.match(/(\d+[\.,]\d{2})/g) || [];
+            const nums = allAmounts.map(a => parseFloat(a.replace(',', '.')));
+
+            // Keywords for Total
+            const totalKeywords = ["TOTAL", "DUE", "GRAND", "NET", "PAY", "AMOUNT", "BALANCE", "TOTAL ENCL"];
+            let foundTotal = false;
+            // Iterate lines backwards to find totals which are usually at the bottom
+            for (let i = lines.length - 1; i >= 0; i--) {
+                const line = lines[i].toUpperCase();
+                if (totalKeywords.some(k => line.includes(k))) {
+                    const m = line.match(amountRegex);
+                    if (m) {
+                        data.total = parseFloat(m[0].replace(',', '.'));
+                        foundTotal = true;
+                        break;
+                    }
+                }
+            }
+            if (!foundTotal && nums.length > 0) data.total = Math.max(...nums);
+
+            // Keywords for VAT
+            const vatKeywords = ["VAT", "TAX", "IVA", "GST", "TAXABLE", "MWST", "TVA"];
+            let foundVat = false;
+            for (let line of lines) {
+                const upperLine = line.toUpperCase();
+                if (vatKeywords.some(k => upperLine.includes(k)) && !totalKeywords.some(k => upperLine.includes(k))) {
+                    const m = line.match(amountRegex);
+                    if (m) {
+                        data.vat = parseFloat(m[0].replace(',', '.'));
+                        foundVat = true;
+                        break;
+                    }
+                }
+            }
+            if (!foundVat) data.vat = (data.total * 0.15).toFixed(2);
+
+            data.subtotal = (data.total - data.vat).toFixed(2);
+            return data;
         }
 
         function enlargeImage(src) {
@@ -225,17 +290,22 @@
             recognition.onresult = e => {
                 const val = e.results[0][0].transcript;
                 const input = document.getElementById(fieldId);
-                if (input.type === 'number') {
-                    // Try to extract numbers from speech
+                if (input.tagName === 'SELECT') {
+                    // Try to match category
+                    for (let opt of input.options) {
+                        if (val.toLowerCase().includes(opt.text.toLowerCase())) {
+                            input.value = opt.text;
+                            break;
+                        }
+                    }
+                } else if (input.type === 'number') {
                     const numMatch = val.match(/[\d\.]+/);
                     if (numMatch) input.value = numMatch[0];
                 } else {
                     input.value = val;
                 }
-                btn.classList.remove('active');
             };
 
-            recognition.onerror = () => btn.classList.remove('active');
             recognition.onend = () => btn.classList.remove('active');
             recognition.start();
         }
@@ -282,10 +352,11 @@
                     const div = document.createElement('div');
                     div.className = "receipt-card";
                     div.innerHTML = `
-                        <img src="${r.image || ''}" onclick="enlargeImage(this.src)" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in;">
+                        <img src="${r.image || ''}" onclick="enlargeImage(this.src)" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; border: 1px solid #eee;">
                         <div class="receipt-info">
                             <span class="receipt-vendor">${r.vendor}</span>
                             <span class="receipt-meta">${r.date} • ${r.category}</span>
+                            <button style="background:none; border:none; color: var(--primary); font-size: 0.75rem; padding: 0; cursor: pointer;" onclick="enlargeImage('${r.image}')">🔍 View Full Receipt</button>
                         </div>
                         <div class="receipt-total">$${r.total.toFixed(2)}</div>
                         <button class="del-btn" style="color: var(--primary); margin-right: 10px;" onclick="editReceipt(${r.id})">✏️</button>
@@ -354,7 +425,6 @@
         function exportToExcel() {
             db.transaction("receipts").objectStore("receipts").getAll().onsuccess = e => {
                 const data = e.target.result.map(r => {
-                    // Include the image as a column for verification
                     return {
                         id: r.id,
                         vendor: r.vendor,
@@ -364,7 +434,7 @@
                         total: r.total,
                         category: r.category,
                         timestamp: r.timestamp,
-                        scanned_document_base64: r.image // This exports the full scanned document
+                        scanned_document_base64: r.image
                     };
                 });
                 const ws = XLSX.utils.json_to_sheet(data);
