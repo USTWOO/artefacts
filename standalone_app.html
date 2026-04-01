@@ -106,6 +106,7 @@
     <script>
         let db;
         let currentImage = null;
+        let editingId = null;
         const request = indexedDB.open("ReceiptDB", 1);
 
         request.onupgradeneeded = e => {
@@ -177,16 +178,19 @@
                 timestamp: new Date().toISOString()
             };
 
+            if (editingId) receipt.id = editingId;
+
             const transaction = db.transaction(["receipts"], "readwrite");
-            transaction.objectStore("receipts").add(receipt);
+            transaction.objectStore("receipts").put(receipt);
             transaction.oncomplete = () => {
-                alert("Saved!");
+                alert(editingId ? "Updated!" : "Saved!");
                 resetScan();
                 showView('history', document.querySelectorAll('.tab-btn')[1]);
             };
         }
 
         function resetScan() {
+            editingId = null;
             document.getElementById('edit-form').style.display = 'none';
             document.getElementById('capture-btn').style.display = 'block';
             document.getElementById('processing').style.display = 'none';
@@ -204,16 +208,39 @@
                     const div = document.createElement('div');
                     div.className = "receipt-card";
                     div.innerHTML = `
+                        <img src="${r.image || ''}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px;">
                         <div class="receipt-info">
                             <span class="receipt-vendor">${r.vendor}</span>
                             <span class="receipt-meta">${r.date} • ${r.category}</span>
                         </div>
                         <div class="receipt-total">$${r.total.toFixed(2)}</div>
+                        <button class="del-btn" style="color: var(--primary); margin-right: 10px;" onclick="editReceipt(${r.id})">✏️</button>
                         <button class="del-btn" onclick="deleteReceipt(${r.id})">🗑️</button>
                     `;
                     list.appendChild(div);
                     cursor.continue();
                 }
+            };
+        }
+
+        function editReceipt(id) {
+            db.transaction("receipts").objectStore("receipts").get(id).onsuccess = e => {
+                const r = e.target.result;
+                editingId = id;
+                currentImage = r.image;
+
+                document.getElementById('vendor').value = r.vendor;
+                document.getElementById('date').value = r.date;
+                document.getElementById('subtotal').value = r.subtotal;
+                document.getElementById('vat').value = r.vat;
+                document.getElementById('total').value = r.total;
+                document.getElementById('category').value = r.category;
+                document.getElementById('img-preview').src = r.image || "";
+                document.getElementById('img-preview').style.display = r.image ? 'block' : 'none';
+
+                showView('scan', document.querySelectorAll('.tab-btn')[0]);
+                document.getElementById('capture-btn').style.display = 'none';
+                document.getElementById('edit-form').style.display = 'block';
             };
         }
 
@@ -253,7 +280,18 @@
         function exportToExcel() {
             db.transaction("receipts").objectStore("receipts").getAll().onsuccess = e => {
                 const data = e.target.result.map(r => {
-                    const {image, ...rest} = r; return rest;
+                    // Include the image as a column for verification
+                    return {
+                        id: r.id,
+                        vendor: r.vendor,
+                        date: r.date,
+                        subtotal: r.subtotal,
+                        vat: r.vat,
+                        total: r.total,
+                        category: r.category,
+                        timestamp: r.timestamp,
+                        scanned_document_base64: r.image // This exports the full scanned document
+                    };
                 });
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
