@@ -1,6 +1,10 @@
 @echo off
 setlocal
 
+:: Get the directory where the script is located
+set "BASE_DIR=%~dp0"
+cd /d "%BASE_DIR%"
+
 echo --- Receipt Scanner: Starting Backend ---
 
 :: Check for Python
