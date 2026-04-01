@@ -104,6 +104,7 @@
                         <button id="save-btn" onclick="saveReceipt()">Save</button>
                         <button id="cancel-btn" onclick="resetScan()">Cancel</button>
                     </div>
+                    <button style="margin-top: 15px; background: none; border: 1px solid #ccc; width: 100%; padding: 8px; border-radius: 8px; font-size: 0.8rem;" onclick="showRawText()">View Scanned Text (Debug)</button>
                 </div>
             </section>
 
@@ -138,6 +139,7 @@
         let db;
         let currentImage = null;
         let editingId = null;
+        let rawOCRText = "";
         const request = indexedDB.open("ReceiptDB", 1);
 
         request.onupgradeneeded = e => {
@@ -188,6 +190,7 @@
 
                 const { data: { text } } = await worker.recognize(currentImage);
                 await worker.terminate();
+                rawOCRText = text;
 
                 // 3. Extract Data with Advanced Logic
                 const extracted = extractOCR(text);
@@ -283,15 +286,24 @@
         }
 
         function startVoice(fieldId, btn) {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Voice recognition not supported in this browser.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
             recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
             btn.classList.add('active');
 
             recognition.onresult = e => {
                 const val = e.results[0][0].transcript;
+                console.log("Voice Result:", val);
                 const input = document.getElementById(fieldId);
                 if (input.tagName === 'SELECT') {
-                    // Try to match category
                     for (let opt of input.options) {
                         if (val.toLowerCase().includes(opt.text.toLowerCase())) {
                             input.value = opt.text;
@@ -306,8 +318,22 @@
                 }
             };
 
-            recognition.onend = () => btn.classList.remove('active');
-            recognition.start();
+            recognition.onerror = e => {
+                console.error("Voice Error:", e.error);
+                if (e.error === 'not-allowed') alert("Microphone access denied. Please check browser permissions.");
+                btn.classList.remove('active');
+            };
+
+            recognition.onend = () => {
+                btn.classList.remove('active');
+            };
+
+            try {
+                recognition.start();
+            } catch (err) {
+                console.error("Voice Start Error:", err);
+                btn.classList.remove('active');
+            }
         }
 
         function saveReceipt() {
@@ -393,6 +419,10 @@
             if(confirm("Delete this receipt?")) {
                 db.transaction(["receipts"], "readwrite").objectStore("receipts").delete(id).onsuccess = renderHistory;
             }
+        }
+
+        function showRawText() {
+            alert("Raw Scanned Text:\n\n" + (rawOCRText || "No text found."));
         }
 
         function renderStats() {
