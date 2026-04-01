@@ -31,19 +31,41 @@ sudo apt-get install -y tesseract-ocr libtesseract-dev libgl1
 
 ### Python Dependencies
 
-The application requires Python 3.8+. Install the required Python packages:
+The application requires Python 3.8+. It is **highly recommended** to use a virtual environment:
 
-```bash
+#### Windows (PowerShell)
+```powershell
+# Create virtual environment
+python -m venv venv
+# Activate it
+.\venv\Scripts\Activate.ps1
+# Install dependencies
 pip install -r backend/requirements.txt
+# Download NLP model
 python -m spacy download en_core_web_sm
+```
+
+#### Ubuntu/Linux/macOS
+```bash
+# Create virtual environment
+python3 -m venv venv
+# Activate it
+source venv/bin/activate
+# Install dependencies
+pip install -r backend/requirements.txt
+# Download NLP model
+python3 -m spacy download en_core_web_sm
 ```
 
 ## Running the Application
 
+Ensure your virtual environment is **activated** before running these commands.
+
 1. **Start the Backend Server**:
    From the project root directory:
    ```bash
-   uvicorn backend.main:app --host 0.0.0.0 --port 8000
+   # Using python -m uvicorn ensures the command is found
+   python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
    ```
 
 2. **Serve the Frontend**:
