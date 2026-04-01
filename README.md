@@ -1,10 +1,36 @@
-# 🚀 Receipt Scanner (Mobile-First PWA)
+# 🚀 Receipt Scanner (Standalone Mobile App)
 
-A complete mobile application for scanning, OCR, and categorizing receipts. Designed to run as an app on your Android phone without needing to manually generate an APK.
+This is a **standalone** mobile application that runs directly on your phone. **No server, No PC, and No complex installation required.**
 
 ---
 
-## ⚡ 3-Step Quick Start (Windows)
+## ⚡ 2-Minute Setup (Direct to Phone)
+
+1.  **Download the File**: Get the `standalone_app.html` file onto your phone (via Email, WhatsApp, or direct download).
+2.  **Open on Phone**: Open the file in **Chrome** on your Android device.
+3.  **Install as App**:
+    -   Tap the **⋮** menu in Chrome (top right).
+    -   Select **"Add to Home screen"**.
+    -   Give it a name (e.g., "Receipt Scanner") and tap **Add**.
+
+**Done! You now have a standalone app icon on your home screen that works anywhere.**
+
+---
+
+## 🏗️ How it Works (Standalone)
+
+- **Zero-Server OCR**: Uses AI (Tesseract.js) to read your receipts directly inside your phone's browser.
+- **Privacy & Security**: All your data and receipt images stay **on your phone**. Nothing is ever sent to a server.
+- **Persistence**: Uses your phone's internal storage (IndexedDB) to save your history permanently.
+- **Full Features**:
+    - Scan Vendor, Date, and Amounts.
+    - Categorize expenses (Fuel, Food, etc.).
+    - Monthly & Category summaries.
+    - Export everything to Excel.
+
+---
+
+## 💻 Developer Setup (Optional)
 
 1.  **Download and Install Python** from [python.org](https://www.python.org/downloads/) (if you don't have it).
 2.  **Double-click `run_backend.bat`** (this installs everything and starts the server).
