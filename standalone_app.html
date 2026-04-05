@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced Receipt Scanner</title>
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #007aff; --bg: #f4f4f9; --text: #333; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; min-height: 100vh; }
+        header h1 { text-align: center; margin: 10px 0; font-size: 1.5rem; }
+        .tabs { display: flex; background: white; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-size: 0.9rem; cursor: pointer; color: #666; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        #capture-btn { width: 100%; padding: 20px; background: var(--primary); color: white; border: none; border-radius: 15px; font-size: 1.2rem; cursor: pointer; margin: 20px 0; }
+        #processing { text-align: center; font-style: italic; color: var(--primary); margin: 10px 0; display: none; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; }
+        .voice-group { display: flex; align-items: center; gap: 5px; }
+        .form-group input, .form-group select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        .voice-btn { background: #eee; border: 1px solid #ccc; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+        .voice-btn.active { background: #ff3b30; color: white; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        .btns { display: flex; gap: 10px; margin-top: 15px; }
+        .btns button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+        #save-btn { background: #28a745; color: white; }
+        #cancel-btn { background: #dc3545; color: white; }
+
+        .receipt-card { background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; }
+        .receipt-info { flex: 1; }
+        .receipt-vendor { font-weight: bold; display: block; }
+        .receipt-meta { font-size: 0.8rem; color: #666; }
+        .receipt-total { font-weight: bold; color: #28a745; margin: 0 10px; }
+        .del-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; }
+
+        .stats-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        .stats-card h3 { margin: 0 0 10px 0; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.9rem; }
+
+        #export-btn { width: 100%; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; margin-top: 10px; }
+        #img-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 10px; display: none; cursor: zoom-in; }
+
+        /* Modal for Full Image */
+        #img-modal { display: none; position: fixed; z-index: 2000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
+        #img-modal img { max-width: 95%; max-height: 95%; object-fit: contain; }
+        #close-modal { position: absolute; top: 20px; right: 20px; color: white; font-size: 30px; cursor: pointer; border: 2px solid white; border-radius: 50%; width: 40px; height: 40px; text-align: center; line-height: 35px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>Receipt Scanner</h1></header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="showView('scan', this)">Scan</button>
+            <button class="tab-btn" onclick="showView('history', this)">History</button>
+            <button class="tab-btn" onclick="showView('stats', this)">Stats</button>
+        </nav>
+
+        <main>
+            <!-- Scan View -->
+            <section id="scan-view" class="view active">
+                <button id="capture-btn" onclick="document.getElementById('file-input').click()">📷 Scan Receipt</button>
+                <input type="file" id="file-input" accept="image/*" capture="camera" style="display:none" onchange="processImage(this)">
+
+                <div id="processing">🤖 AI is reading your receipt...</div>
+
+                <div id="edit-form" style="display:none">
+                    <img id="img-preview" src="" onclick="enlargeImage(this.src)">
+                    <div class="form-group"><label>Company:</label>
+                        <div class="voice-group"><input type="text" id="vendor"><button class="voice-btn" onclick="startVoice('vendor', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Date:</label>
+                        <div class="voice-group"><input type="text" id="date"><button class="voice-btn" onclick="startVoice('date', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Subtotal:</label>
+                        <div class="voice-group"><input type="number" step="0.01" id="subtotal"><button class="voice-btn" onclick="startVoice('subtotal', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>VAT:</label>
+                        <div class="voice-group"><input type="number" step="0.01" id="vat"><button class="voice-btn" onclick="startVoice('vat', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Total:</label>
+                        <div class="voice-group"><input type="number" step="0.01" id="total"><button class="voice-btn" onclick="startVoice('total', this)">🎙️</button></div>
+                    </div>
+                    <div class="form-group"><label>Category:</label>
+                        <div class="voice-group">
+                            <select id="category">
+                                <option>Food</option><option>Travel</option><option>Fuel</option>
+                                <option>Entertainment</option><option>Supplies</option><option>Utilities</option>
+                                <option>Miscellaneous</option>
+                            </select>
+                            <button class="voice-btn" onclick="startVoice('category', this)">🎙️</button>
+                        </div>
+                    </div>
+                    <div class="btns">
+                        <button id="save-btn" onclick="saveReceipt()">Save</button>
+                        <button id="cancel-btn" onclick="resetScan()">Cancel</button>
+                    </div>
+                    <button style="margin-top: 15px; background: none; border: 1px solid #ccc; width: 100%; padding: 8px; border-radius: 8px; font-size: 0.8rem;" onclick="showRawText()">View Scanned Text (Debug)</button>
+                </div>
+            </section>
+
+            <!-- History View -->
+            <section id="history-view" class="view">
+                <div id="receipt-list"></div>
+                <button id="export-btn" onclick="exportToExcel()">📊 Export to Excel</button>
+            </section>
+
+            <!-- Stats View -->
+            <section id="stats-view" class="view">
+                <div class="stats-card">
+                    <h3>Monthly Summary</h3>
+                    <div id="monthly-stats"></div>
+                </div>
+                <div class="stats-card">
+                    <h3>Category Summary</h3>
+                    <div id="category-stats"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="img-modal">
+        <span id="close-modal" onclick="document.getElementById('img-modal').style.display='none'">&times;</span>
+        <img id="modal-img" src="">
+    </div>
+
+    <canvas id="proc-canvas" style="display:none"></canvas>
+
+    <script>
+        let db;
+        let currentImage = null;
+        let editingId = null;
+        let rawOCRText = "";
+        const request = indexedDB.open("ReceiptDB", 1);
+
+        request.onupgradeneeded = e => {
+            db = e.target.result;
+            db.createObjectStore("receipts", { keyPath: "id", autoIncrement: true });
+        };
+        request.onsuccess = e => { db = e.target.result; renderHistory(); };
+
+        function showView(viewId, btn) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId + '-view').classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if(viewId === 'history') renderHistory();
+            if(viewId === 'stats') renderStats();
+        }
+
+        async function processImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const procMsg = document.getElementById('processing');
+            procMsg.innerText = "🤖 AI is reading your receipt...";
+            procMsg.style.display = 'block';
+            document.getElementById('capture-btn').style.display = 'none';
+
+            // 1. Preprocess Image for better OCR
+            const img = await createImageBitmap(file);
+            const canvas = document.getElementById('proc-canvas');
+            const ctx = canvas.getContext('2d');
+
+            const scale = Math.min(2.0, 2500 / Math.max(img.width, img.height));
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+
+            ctx.filter = 'grayscale(1) contrast(300%) brightness(120%)';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            currentImage = canvas.toDataURL('image/jpeg', 0.9);
+            document.getElementById('img-preview').src = currentImage;
+            document.getElementById('img-preview').style.display = 'block';
+
+            try {
+                // 2. Perform OCR with progress
+                const worker = await Tesseract.createWorker();
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+
+                const { data: { text } } = await worker.recognize(currentImage);
+                await worker.terminate();
+                rawOCRText = text;
+
+                // 3. Extract Data with Advanced Logic
+                const extracted = extractOCR(text);
+
+                document.getElementById('vendor').value = extracted.vendor;
+                document.getElementById('date').value = extracted.date;
+                document.getElementById('total').value = extracted.total;
+                document.getElementById('vat').value = extracted.vat;
+                document.getElementById('subtotal').value = extracted.subtotal;
+
+                document.getElementById('processing').style.display = 'none';
+                document.getElementById('edit-form').style.display = 'block';
+            } catch (err) {
+                alert("OCR Error: " + err);
+                resetScan();
+            }
+        }
+
+        function extractOCR(text) {
+            // Clean common OCR character confusion
+            const cleanText = text.replace(/[OQ]/g, '0').replace(/[ILl|]/g, '1').replace(/S/g, '5').replace(/B/g, '8');
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            let data = { vendor: "Unknown", date: new Date().toLocaleDateString(), total: 0, vat: 0, subtotal: 0 };
+
+            // --- 1. Vendor Detection (Looking for branding usually at the top) ---
+            const noise = ["TAX INVOICE", "RECEIPT", "INVOICE", "WELCOME", "CUSTOMER COPY", "ORDER", "CASH", "SALE", "TERMINAL"];
+            for (let i = 0; i < Math.min(lines.length, 6); i++) {
+                const upperLine = lines[i].toUpperCase();
+                if (lines[i].length > 3 && !noise.some(n => upperLine.includes(n)) && !/\d{2,}/.test(lines[i])) {
+                    data.vendor = lines[i];
+                    break;
+                }
+            }
+
+            // --- 2. Date Detection (Multiple formats) ---
+            const datePatterns = [
+                /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/,
+                /\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/,
+                /\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}/i,
+                /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}/i
+            ];
+            for (let p of datePatterns) {
+                let m = text.match(p);
+                if (m) { data.date = m[0]; break; }
+            }
+
+            // --- 3. Amount Detection (Total, VAT, Subtotal) ---
+            const amountRegex = /(\d+[\.,]\d{2})/;
+            const allAmounts = text.match(/(\d+[\.,]\d{2})/g) || [];
+            const nums = allAmounts.map(a => parseFloat(a.replace(',', '.')));
+
+            // Keywords for Total
+            const totalKeywords = ["TOTAL", "DUE", "GRAND", "NET", "PAY", "AMOUNT", "BALANCE", "TOTAL ENCL"];
+            let foundTotal = false;
+            // Iterate lines backwards to find totals which are usually at the bottom
+            for (let i = lines.length - 1; i >= 0; i--) {
+                const line = lines[i].toUpperCase();
+                if (totalKeywords.some(k => line.includes(k))) {
+                    const m = line.match(amountRegex);
+                    if (m) {
+                        data.total = parseFloat(m[0].replace(',', '.'));
+                        foundTotal = true;
+                        break;
+                    }
+                }
+            }
+            if (!foundTotal && nums.length > 0) data.total = Math.max(...nums);
+
+            // Keywords for VAT
+            const vatKeywords = ["VAT", "TAX", "IVA", "GST", "TAXABLE", "MWST", "TVA"];
+            let foundVat = false;
+            for (let line of lines) {
+                const upperLine = line.toUpperCase();
+                if (vatKeywords.some(k => upperLine.includes(k)) && !totalKeywords.some(k => upperLine.includes(k))) {
+                    const m = line.match(amountRegex);
+                    if (m) {
+                        data.vat = parseFloat(m[0].replace(',', '.'));
+                        foundVat = true;
+                        break;
+                    }
+                }
+            }
+            if (!foundVat) data.vat = (data.total * 0.15).toFixed(2);
+
+            data.subtotal = (data.total - data.vat).toFixed(2);
+            return data;
+        }
+
+        function enlargeImage(src) {
+            document.getElementById('modal-img').src = src;
+            document.getElementById('img-modal').style.display = 'flex';
+        }
+
+        function startVoice(fieldId, btn) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Voice recognition not supported in this browser.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            btn.classList.add('active');
+
+            recognition.onresult = e => {
+                const val = e.results[0][0].transcript;
+                console.log("Voice Result:", val);
+                const input = document.getElementById(fieldId);
+                if (input.tagName === 'SELECT') {
+                    for (let opt of input.options) {
+                        if (val.toLowerCase().includes(opt.text.toLowerCase())) {
+                            input.value = opt.text;
+                            break;
+                        }
+                    }
+                } else if (input.type === 'number') {
+                    const numMatch = val.match(/[\d\.]+/);
+                    if (numMatch) input.value = numMatch[0];
+                } else {
+                    input.value = val;
+                }
+            };
+
+            recognition.onerror = e => {
+                console.error("Voice Error:", e.error);
+                if (e.error === 'not-allowed') alert("Microphone access denied. Please check browser permissions.");
+                btn.classList.remove('active');
+            };
+
+            recognition.onend = () => {
+                btn.classList.remove('active');
+            };
+
+            try {
+                recognition.start();
+            } catch (err) {
+                console.error("Voice Start Error:", err);
+                btn.classList.remove('active');
+            }
+        }
+
+        function saveReceipt() {
+            const receipt = {
+                vendor: document.getElementById('vendor').value,
+                date: document.getElementById('date').value,
+                subtotal: parseFloat(document.getElementById('subtotal').value),
+                vat: parseFloat(document.getElementById('vat').value),
+                total: parseFloat(document.getElementById('total').value),
+                category: document.getElementById('category').value,
+                image: currentImage,
+                timestamp: new Date().toISOString()
+            };
+
+            if (editingId) receipt.id = editingId;
+
+            const transaction = db.transaction(["receipts"], "readwrite");
+            transaction.objectStore("receipts").put(receipt);
+            transaction.oncomplete = () => {
+                alert(editingId ? "Updated!" : "Saved!");
+                resetScan();
+                showView('history', document.querySelectorAll('.tab-btn')[1]);
+            };
+        }
+
+        function resetScan() {
+            editingId = null;
+            document.getElementById('edit-form').style.display = 'none';
+            document.getElementById('capture-btn').style.display = 'block';
+            document.getElementById('processing').style.display = 'none';
+            document.getElementById('file-input').value = "";
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('receipt-list');
+            list.innerHTML = "";
+            const store = db.transaction("receipts").objectStore("receipts");
+            store.openCursor(null, "prev").onsuccess = e => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    const r = cursor.value;
+                    const div = document.createElement('div');
+                    div.className = "receipt-card";
+                    div.innerHTML = `
+                        <img src="${r.image || ''}" onclick="enlargeImage(this.src)" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; border: 1px solid #eee;">
+                        <div class="receipt-info">
+                            <span class="receipt-vendor">${r.vendor}</span>
+                            <span class="receipt-meta">${r.date} • ${r.category}</span>
+                            <button style="background:none; border:none; color: var(--primary); font-size: 0.75rem; padding: 0; cursor: pointer;" onclick="enlargeImage('${r.image}')">🔍 View Full Receipt</button>
+                        </div>
+                        <div class="receipt-total">$${r.total.toFixed(2)}</div>
+                        <button class="del-btn" style="color: var(--primary); margin-right: 10px;" onclick="editReceipt(${r.id})">✏️</button>
+                        <button class="del-btn" onclick="deleteReceipt(${r.id})">🗑️</button>
+                    `;
+                    list.appendChild(div);
+                    cursor.continue();
+                }
+            };
+        }
+
+        function editReceipt(id) {
+            db.transaction("receipts").objectStore("receipts").get(id).onsuccess = e => {
+                const r = e.target.result;
+                editingId = id;
+                currentImage = r.image;
+
+                document.getElementById('vendor').value = r.vendor;
+                document.getElementById('date').value = r.date;
+                document.getElementById('subtotal').value = r.subtotal;
+                document.getElementById('vat').value = r.vat;
+                document.getElementById('total').value = r.total;
+                document.getElementById('category').value = r.category;
+                document.getElementById('img-preview').src = r.image || "";
+                document.getElementById('img-preview').style.display = r.image ? 'block' : 'none';
+
+                showView('scan', document.querySelectorAll('.tab-btn')[0]);
+                document.getElementById('capture-btn').style.display = 'none';
+                document.getElementById('edit-form').style.display = 'block';
+            };
+        }
+
+        function deleteReceipt(id) {
+            if(confirm("Delete this receipt?")) {
+                db.transaction(["receipts"], "readwrite").objectStore("receipts").delete(id).onsuccess = renderHistory;
+            }
+        }
+
+        function showRawText() {
+            alert("Raw Scanned Text:\n\n" + (rawOCRText || "No text found."));
+        }
+
+        function renderStats() {
+            const monthDiv = document.getElementById('monthly-stats');
+            const catDiv = document.getElementById('category-stats');
+            monthDiv.innerHTML = ""; catDiv.innerHTML = "";
+
+            const monthly = {}; const category = {};
+
+            db.transaction("receipts").objectStore("receipts").getAll().onsuccess = e => {
+                const receipts = e.target.result;
+                receipts.forEach(r => {
+                    const m = (r.date && r.date.length >= 7) ? r.date.substring(0, 7) : "Unknown";
+                    if (!monthly[m]) monthly[m] = { total: 0, vat: 0 };
+                    monthly[m].total += r.total; monthly[m].vat += r.vat;
+
+                    if (!category[r.category]) category[r.category] = 0;
+                    category[r.category] += r.total;
+                });
+
+                for (let m in monthly) {
+                    monthDiv.innerHTML += `<div class="stat-row"><span>${m}</span><span>$${monthly[m].total.toFixed(2)} (VAT $${monthly[m].vat.toFixed(2)})</span></div>`;
+                }
+                for (let c in category) {
+                    catDiv.innerHTML += `<div class="stat-row"><span>${c}</span><span>$${category[c].toFixed(2)}</span></div>`;
+                }
+            };
+        }
+
+        function exportToExcel() {
+            db.transaction("receipts").objectStore("receipts").getAll().onsuccess = e => {
+                const data = e.target.result.map(r => {
+                    return {
+                        id: r.id,
+                        vendor: r.vendor,
+                        date: r.date,
+                        subtotal: r.subtotal,
+                        vat: r.vat,
+                        total: r.total,
+                        category: r.category,
+                        timestamp: r.timestamp,
+                        scanned_document_base64: r.image
+                    };
+                });
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Receipts");
+                XLSX.writeFile(wb, "Receipts_Export.xlsx");
+            };
+        }
+    </script>
+</body>
+</html>

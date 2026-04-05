@@ -1,2 +1,90 @@
-# artefacts
-BIAN artefacts in Excel
+# 🚀 Receipt Scanner (Standalone Mobile App)
+
+This is a **standalone** mobile application that runs directly on your phone. **No server, No PC, and No complex installation required.**
+
+---
+
+## ⚡ 2-Minute Setup (Direct to Phone)
+
+1.  **Download the File**: Get the `standalone_app.html` file onto your phone (via Email, WhatsApp, or direct download).
+2.  **Open on Phone**: Open the file in **Chrome** on your Android device.
+3.  **Install as App**:
+    -   Tap the **⋮** menu in Chrome (top right).
+    -   Select **"Add to Home screen"**.
+    -   Give it a name (e.g., "Receipt Scanner") and tap **Add**.
+
+**Done! You now have a standalone app icon on your home screen that works anywhere.**
+
+---
+
+## 🏗️ How it Works (Standalone)
+
+- **Zero-Server OCR**: Uses AI (Tesseract.js) to read your receipts directly inside your phone's browser.
+- **Privacy & Security**: All your data and receipt images stay **on your phone**. Nothing is ever sent to a server.
+- **Persistence**: Uses your phone's internal storage (IndexedDB) to save your history permanently.
+- **Full Features**:
+    - Scan Vendor, Date, and Amounts.
+    - Categorize expenses (Fuel, Food, etc.).
+    - Monthly & Category summaries.
+    - Export everything to Excel.
+
+---
+
+## 💻 Developer Setup (Optional)
+
+1.  **Download and Install Python** from [python.org](https://www.python.org/downloads/) (if you don't have it).
+2.  **Double-click `run_backend.bat`** (this installs everything and starts the server).
+3.  **Double-click `run_frontend.bat`** (this starts the mobile-friendly web view).
+
+---
+
+## 📱 How to get it on your Phone (No APK needed!)
+
+This application is a **Progressive Web App (PWA)**, which is the modern alternative to an APK. You can "Install" it to your phone's home screen as a standalone app:
+
+1.  **Run the scripts** (Steps 2 and 3 above) on your PC.
+2.  **Connect your phone** to the same Wi-Fi as your PC.
+3.  **Find your PC's IP address** (open CMD, type `ipconfig`, look for "IPv4 Address").
+4.  **Open Chrome on your Phone** and go to `http://<your-pc-ip>:3000`.
+5.  **Install as App**: Tap the **⋮** menu in Chrome (top right) and select **"Add to Home screen"** or **"Install app"**.
+
+**Your app is now on your home screen, ready to use!**
+
+---
+
+## 🛠️ Complete Local Install (Android / Termux)
+
+If you want to run the *entire* app (server + web view) **only** on your phone without a computer:
+
+1.  **Install Termux** from [F-Droid](https://f-droid.org/en/packages/com.termux/).
+2.  **Copy-paste these commands** into Termux:
+    ```bash
+    pkg update && pkg upgrade
+    pkg install python tesseract-ocr libjpeg-turbo libpng opencv
+    pip install -r backend/requirements.txt
+    python -m spacy download en_core_web_sm
+    ```
+3.  **Run the app**:
+    -   Type `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 &`
+    -   Type `cd frontend && python -m http.server 3000`
+4.  **Open Chrome** on your phone and go to `http://localhost:3000`.
+
+---
+
+## 🏗️ Architecture & Features
+
+- **OCR & Extraction**: Scans Vendor, Date, Subtotal, VAT, and Total.
+- **Persistence**: Uses a persistent SQLite database (retained even when power is off).
+- **Categories**: Automatically categorizes (Fuel, Entertainment, etc.).
+- **Analytical Views**: See monthly and category-based expense summaries.
+- **Export**: Export all data to Excel.
+- **Responsive**: Optimized for mobile use.
+
+---
+
+## 🧪 Testing
+
+To run the internal verification tests:
+```bash
+python -m pytest tests/
+```
