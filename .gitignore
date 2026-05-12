@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+instance/
+.pytest_cache/
+finance_manager.db
+test_finance.db
+server.log
+frontend_server.log
+uploads/*
+!uploads/.gitkeep

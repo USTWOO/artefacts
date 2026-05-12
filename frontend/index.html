@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+</head>
+<body>
+    <header>
+        <h1>Finance Manager</h1>
+    </header>
+
+    <main>
+        <section id="alerts" class="hidden">
+            <h2>Warnings</h2>
+            <div id="missed-payments-list"></div>
+        </section>
+
+        <section id="dashboard">
+            <h2>Dashboard</h2>
+            <div class="stats-card">
+                <p>Income (Month): <span id="total-income">0</span></p>
+                <p>Expense (Month): <span id="total-expense">0</span></p>
+            </div>
+
+            <div id="expense-annual-stats">
+                <h3>Annual Spend Summary</h3>
+                <ul id="annual-stats-list"></ul>
+            </div>
+
+            <button onclick="exportData()">Export to Excel</button>
+        </section>
+
+        <section id="import">
+            <h2>Import Statement (PDF)</h2>
+            <form id="import-form">
+                <select id="import-account-select"></select>
+                <input type="file" id="statement-file" accept="application/pdf">
+                <button type="submit">Upload & Process</button>
+            </form>
+        </section>
+
+        <section id="management">
+            <h2>Management</h2>
+            <div class="tabs">
+                <button onclick="showTab('accounts-tab')">Accounts</button>
+                <button onclick="showTab('cards-tab')">Cards</button>
+                <button onclick="showTab('expenses-tab')">Expenses</button>
+            </div>
+
+            <div id="accounts-tab" class="tab-content">
+                <h3>Accounts</h3>
+                <ul id="accounts-list"></ul>
+                <form id="account-form">
+                    <input type="text" id="acc-name" placeholder="Account Name" required>
+                    <input type="number" id="acc-balance" placeholder="Initial Balance" step="0.01">
+                    <button type="submit">Add Account</button>
+                </form>
+            </div>
+
+            <div id="cards-tab" class="tab-content hidden">
+                <h3>Cards</h3>
+                <ul id="cards-list"></ul>
+                <form id="card-form">
+                    <select id="card-acc-id"></select>
+                    <input type="text" id="card-type" placeholder="Card Type (e.g. Visa)" required>
+                    <input type="text" id="card-holder" placeholder="Name on Card" required>
+                    <input type="text" id="card-num" placeholder="Card Number" required>
+                    <input type="text" id="card-expiry" placeholder="Expiry (MM/YY)" required>
+                    <button type="submit">Add Card</button>
+                </form>
+            </div>
+
+            <div id="expenses-tab" class="tab-content hidden">
+                <h3>Expense Types</h3>
+                <ul id="expenses-list"></ul>
+                <form id="expense-form">
+                    <select id="exp-group-id"></select>
+                    <input type="text" id="exp-name" placeholder="Expense Name" required>
+                    <input type="text" id="exp-desc1" placeholder="Description 1">
+                    <input type="text" id="exp-desc2" placeholder="Description 2">
+                    <input type="number" id="exp-duration" placeholder="Duration (months, -1 for indefinite)">
+                    <input type="number" id="exp-day" placeholder="Payment Day (1-31)">
+                    <input type="number" id="exp-target" placeholder="Total Spend Target" step="0.01">
+                    <button type="submit">Add Expense Type</button>
+                </form>
+                <hr>
+                <form id="group-form">
+                    <input type="text" id="group-name" placeholder="New Group Name" required>
+                    <button type="submit">Add Group</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js');
+            });
+        }
+    </script>
+</body>
+</html>
